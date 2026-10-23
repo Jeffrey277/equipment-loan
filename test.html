@@ -75,6 +75,28 @@
       sortMyLoans(unsorted).map(l => l.id), ['d', 'b', 'c', 'a']);
     check('T-05', '원래 배열은 바꾸지 않는다', unsorted.map(l => l.id), ['a', 'b', 'c', 'd']);
 
+    // T-06 검색 + 분류 + 상태 필터를 함께
+    const sample = [
+      { id: 1, name: '열화상 카메라',      category: '측정',   location: '1층 설비팀',  status: '대여 가능' },
+      { id: 2, name: '휴대용 가스 측정기', category: '측정',   location: '1층 설비팀',  status: '대여중' },
+      { id: 3, name: '무전기 1번',         category: '통신',   location: '1층 안전팀',  status: '대여 가능' },
+      { id: 4, name: '업무용 노트북 A',    category: '노트북', location: '3층 총무팀',  status: '대여 가능' },
+      { id: 5, name: 'Beam 프로젝터',      category: '영상',   location: '2층 대회의실', status: '대여 가능' },
+    ];
+    const ids = list => list.map(i => i.id);
+    check('T-06', '"1층" + 측정 + 대여 가능', ids(filterItems(sample, '1층', '측정', '대여 가능')), [1]);
+    check('T-06', '이름으로 검색 ("측정기")', ids(filterItems(sample, '측정기', '전체', '전체')), [2]);
+    check('T-06', '위치로 검색 ("총무")', ids(filterItems(sample, '총무', '전체', '전체')), [4]);
+    check('T-06', '대소문자 · 앞뒤 빈칸 무시 (" beam ")', ids(filterItems(sample, ' beam ', '전체', '전체')), [5]);
+    check('T-06', '조건 없음 = 전체', ids(filterItems(sample, '', '전체', '전체')), [1, 2, 3, 4, 5]);
+    check('T-06', '맞는 장비가 없으면 빈 목록', ids(filterItems(sample, '1층', '노트북', '전체')), []);
+
+    // T-13 [수정] [삭제] 버튼은 내가 등록한 장비에만 (R-03)
+    check('T-13', '내가 등록한 장비 = 보임', canEditItem({ ownerId: 'user-a' }, 'user-a'), true);
+    check('T-13', '남이 등록한 장비 = 안 보임', canEditItem({ ownerId: 'user-a' }, 'user-b'), false);
+    check('T-13', '기본 장비(등록자 없음) = 안 보임', canEditItem({ ownerId: null }, 'user-a'), false);
+    check('T-13', '로그인 전 = 안 보임', canEditItem({ ownerId: null }, null), false);
+
     // 표 그리기
     const body = document.getElementById('testBody');
     let passCount = 0;

@@ -28,7 +28,7 @@
     <section id="summaryCards" class="summary"></section>
 
     <div class="layout">
-      <!-- 왼쪽 칸 : 로그인 전 = 로그인 폼 / 로그인 후 = 대여 패널 -->
+      <!-- 왼쪽 칸 : 로그인 전 = 로그인 폼 / 로그인 후 = 장비 등록 폼 + 대여 패널 -->
       <aside class="side">
         <form id="loginForm" class="panel">
           <h2>로그인</h2>
@@ -41,6 +41,28 @@
           <button id="loginBtn" type="submit">로그인</button>
           <button id="signupBtn" type="button" class="secondary">처음이면 회원가입</button>
           <p class="hint">가상 이메일(test1@example.com 등)만 쓰세요.</p>
+        </form>
+
+        <!-- [수정]을 누르면 같은 폼이 '장비 수정'으로 바뀐다 -->
+        <form id="itemForm" class="panel" hidden>
+          <h2 id="itemFormTitle">장비 등록</h2>
+          <label>이름
+            <input id="itemNameInput" type="text" maxlength="50" placeholder="예 : 휴대용 산소 측정기">
+          </label>
+          <label>분류
+            <select id="itemCategorySelect">
+              <option>노트북</option>
+              <option>영상</option>
+              <option>측정</option>
+              <option>통신</option>
+              <option>기타</option>
+            </select>
+          </label>
+          <label>보관 위치
+            <input id="itemLocationInput" type="text" maxlength="50" placeholder="예 : 1층 설비팀">
+          </label>
+          <button id="addItemBtn" type="submit">등록</button>
+          <button id="cancelEditBtn" type="button" class="secondary" hidden>취소</button>
         </form>
 
         <section id="loanPanel" class="panel" hidden>
@@ -57,6 +79,23 @@
       <!-- 오른쪽 칸 : 장비 목록 -->
       <section class="panel list">
         <h2>장비 목록</h2>
+        <!-- 검색 · 필터 : 누구나 (DB를 다시 읽지 않고 표만 다시 그림) -->
+        <div class="filters">
+          <input id="searchInput" type="search" placeholder="이름 · 보관 위치 검색" aria-label="이름 · 보관 위치 검색">
+          <select id="categoryFilter" aria-label="분류 필터">
+            <option value="전체">분류 : 전체</option>
+            <option>노트북</option>
+            <option>영상</option>
+            <option>측정</option>
+            <option>통신</option>
+            <option>기타</option>
+          </select>
+          <select id="statusFilter" aria-label="상태 필터">
+            <option value="전체">상태 : 전체</option>
+            <option>대여 가능</option>
+            <option>대여중</option>
+          </select>
+        </div>
         <div class="table-wrap">
           <table id="itemTable" class="table"></table>
         </div>

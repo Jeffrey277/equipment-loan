@@ -78,8 +78,10 @@ body.logged-in .app-header { background: var(--green); }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
 .panel h2 { margin: 0 0 12px; font-size: 16px; }
 
+.side { display: grid; gap: 16px; }
+
 label { display: block; font-size: 14px; margin-bottom: 10px; }
-input { display: block; width: 100%; margin-top: 4px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
+input, select { display: block; width: 100%; margin-top: 4px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
 
 button {
   display: block;
@@ -102,6 +104,11 @@ button.small { display: inline-block; width: auto; margin: 0 4px 0 0; padding: 4
 .loan-item { margin: 0 0 10px; }
 .notice { color: var(--muted); margin: 0; }
 
+/* 검색 · 필터 줄 */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.filters input, .filters select { flex: 1 1 140px; width: auto; margin-top: 0; }
+.filters input { flex-basis: 220px; }
+
 /* 표 */
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -109,6 +116,8 @@ button.small { display: inline-block; width: auto; margin: 0 4px 0 0; padding: 4
 .table th { background: #f8fafc; color: var(--muted); font-weight: normal; }
 .table tr.selected td { background: #fff7e0; }
 .table td.empty { color: var(--muted); text-align: center; }
+/* 연체 = 빨간 줄 (R-09) */
+.table tr.overdue td { background: var(--err-bg); color: var(--err-text); font-weight: bold; }
 
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
 .badge-available { background: var(--ok-bg); color: var(--available); }
