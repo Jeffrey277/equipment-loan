@@ -8,6 +8,7 @@ let currentUser = null;     // 로그인한 사용자 (로그인 전이면 null)
 let items = [];             // 장비 목록
 let myLoans = [];           // 내 대여 (남의 대여는 DB가 주지 않는다, R-02)
 let selectedItemId = null;  // 대여 패널에 고른 장비
+let editingItemId = null;   // 등록 폼에서 수정 중인 장비 (없으면 등록 모드)
 let dataLoaded = false;     // 처음 한 번 읽었는지 ('불러오는 중' 표시용)
 let msgTimer = null;        // 성공 메시지를 지우는 타이머
 
@@ -43,6 +44,7 @@ function initAuth() {
     // 토큰 갱신 · 탭 복귀처럼 사용자가 그대로면 다시 읽지 않는다 (처음 한 번은 읽는다)
     if (sameUser && event !== 'INITIAL_SESSION') return;
     selectedItemId = null;
+    resetItemForm();
     // 이 콜백 안에서 바로 Supabase를 부르면 멈출 수 있어 한 박자 뒤에 읽는다
     setTimeout(reloadData, 0);
   });
@@ -100,12 +102,45 @@ async function returnLoan(loanId) {
   }
 }
 
+// 장비 등록 : 이름 · 분류 · 위치만 보낸다. 등록자 · 상태는 DB가 정한다 (R-03, R-07)
+async function insertItem(item) {
+  const { error } = await supabaseClient
+    .from('eqp_items')
+    .insert({ name: item.name, category: item.category, location: item.location });
+  if (error) throw error;
+}
+
+// 장비 수정 : 내가 등록한 장비만 (R-03)
+async function updateItem(id, fields) {
+  const { data, error } = await supabaseClient
+    .from('eqp_items')
+    .update({ name: fields.name, category: fields.category, location: fields.location })
+    .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  // RLS에 막히면 오류 없이 0줄이 온다
+  if (!data || data.length === 0) throw new Error('본인이 등록한 장비만 수정할 수 있습니다.');
+}
+
+// 장비 삭제 : 내가 등록한 장비만 (R-03), 대여 기록이 있으면 DB가 거부 (R-08)
+async function deleteItem(id) {
+  const { data, error } = await supabaseClient
+    .from('eqp_items')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('본인이 등록한 장비만 삭제할 수 있습니다.');
+}
+
 // DB · 로그인 오류를 한국어 안내로 (F-07). 트리거가 보낸 한국어 이유는 그대로 둔다
 function toKoreanError(error) {
   const msg = (error && error.message) || String(error);
   if (error && error.code === 'P0001') return msg;
   if (msg.includes('eqp_loans_one_active')) return '이미 대여중인 장비입니다. [새로 불러오기] 후 확인하세요.';
   if (msg.includes('eqp_loans_due_range')) return '반납예정일은 대여일부터 7일 이내여야 합니다.';
+  if (msg.includes('foreign key')) return '대여 기록이 있는 장비는 삭제할 수 없습니다.';
+  if (/eqp_items_(name|category|location)_check/.test(msg)) return '이름 · 보관 위치는 1~50자, 분류는 목록에서 고르세요.';
   if (msg.includes('row-level security')) return '본인 것만 할 수 있습니다.';
   if (msg.includes('permission denied')) {
     return currentUser ? '화면에서 바꿀 수 없는 값입니다. (DB가 정하는 값)' : '로그인한 사용자만 할 수 있습니다.';
@@ -185,17 +220,28 @@ function renderSummary() {
   });
 }
 
-// 왼쪽 칸 : 로그인 전 로그인 폼 / 로그인 후 대여 패널
+// 왼쪽 칸 : 로그인 전 로그인 폼 / 로그인 후 장비 등록 폼 + 대여 패널
 function renderSidePanel() {
   const loginForm = getEl('loginForm');
+  const itemForm = getEl('itemForm');
   const loanPanel = getEl('loanPanel');
+  const formTitle = getEl('itemFormTitle');
+  const addBtn = getEl('addItemBtn');
+  const cancelBtn = getEl('cancelEditBtn');
   const name = getEl('loanItemName');
   const due = getEl('dueDateInput');
   const btn = getEl('confirmLoanBtn');
-  if (!loginForm || !loanPanel || !name || !due || !btn) return;
+  if (!loginForm || !itemForm || !loanPanel || !formTitle || !addBtn || !cancelBtn || !name || !due || !btn) return;
   loginForm.hidden = !!currentUser;
+  itemForm.hidden = !currentUser;
   loanPanel.hidden = !currentUser;
   if (!currentUser) return;
+
+  // 수정 중이던 장비가 그새 없어졌으면 등록 모드로
+  if (editingItemId && !items.some(i => i.id === editingItemId)) resetItemForm();
+  formTitle.textContent = editingItemId ? '장비 수정' : '장비 등록';
+  addBtn.textContent = editingItemId ? '수정 저장' : '등록';
+  cancelBtn.hidden = !editingItemId;
 
   // 고른 장비가 그새 대여중이 되었으면 선택을 푼다
   const item = items.find(i => i.id === selectedItemId);
@@ -209,7 +255,7 @@ function renderSidePanel() {
   btn.disabled = !selectedItemId;
 }
 
-// 장비 목록 : 로그인 후에만 '할 일' 칸
+// 장비 목록 : 검색 · 필터 적용, 로그인 후에만 '할 일' 칸
 function renderItemTable() {
   const table = getEl('itemTable');
   if (!table) return;
@@ -224,18 +270,25 @@ function renderItemTable() {
     headRow.appendChild(th);
   });
 
+  const search = getEl('searchInput');
+  const category = getEl('categoryFilter');
+  const status = getEl('statusFilter');
+  const shown = filterItems(items,
+    search ? search.value : '', category ? category.value : '전체', status ? status.value : '전체');
+
   const body = table.createTBody();
-  if (items.length === 0) {
+  if (shown.length === 0) {
     const cell = body.insertRow().insertCell();
     cell.colSpan = headers.length;
     cell.className = 'empty';
-    cell.textContent = dataLoaded ? '장비가 없습니다.' : '불러오는 중입니다…';
+    if (!dataLoaded) cell.textContent = '불러오는 중입니다…';
+    else cell.textContent = items.length === 0 ? '장비가 없습니다.' : '조건에 맞는 장비가 없습니다.';
     return;
   }
 
-  items.forEach(item => {
+  shown.forEach(item => {
     const row = body.insertRow();
-    if (item.id === selectedItemId) row.classList.add('selected');
+    if (item.id === selectedItemId || item.id === editingItemId) row.classList.add('selected');
     [item.name, item.category, item.location].forEach(text => { row.insertCell().textContent = text; });
 
     const badge = document.createElement('span');
@@ -253,11 +306,29 @@ function renderItemTable() {
         btn.addEventListener('click', () => openLoanPanel(item.id));
         actions.appendChild(btn);
       }
+      // R-03 [수정] [삭제]는 내가 등록한 장비에만
+      if (canEditItem(item, currentUser.id)) {
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'small secondary';
+        editBtn.textContent = '수정';
+        editBtn.addEventListener('click', () => startEditItem(item.id));
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'small secondary';
+        delBtn.textContent = '삭제';
+        delBtn.addEventListener('click', () => {
+          delBtn.disabled = true;
+          removeItem(item.id);
+        });
+        actions.append(editBtn, delBtn);
+      }
     }
   });
 }
 
-// 내 대여 : 로그인 전 안내 / 로그인 후 내 것만, 대여중에만 [반납]
+// 내 대여 : 로그인 전 안내 / 로그인 후 내 것만, 대여중에만 [반납], 연체는 빨간 줄
 function renderMyLoans() {
   const notice = getEl('myLoansNotice');
   const table = getEl('myLoansTable');
@@ -281,11 +352,13 @@ function renderMyLoans() {
   });
 
   const body = table.createTBody();
+  const today = todayStr();
   sortMyLoans(myLoans).forEach(loan => {
     const row = body.insertRow();
-    const statusText = loan.status === '반납완료'
-      ? `반납완료 (${formatDate(new Date(loan.returnedAt))})`
-      : '대여중';
+    const overdue = isOverdue(loan, today);
+    if (overdue) row.classList.add('overdue');
+    let statusText = overdue ? '대여중 (연체)' : '대여중';
+    if (loan.status === '반납완료') statusText = `반납완료 (${formatDate(new Date(loan.returnedAt))})`;
     [loan.itemName, loan.startDate, loan.dueDate, statusText].forEach(text => { row.insertCell().textContent = text; });
 
     const actions = row.insertCell();
@@ -434,12 +507,125 @@ async function doReturn(loanId) {
   await reloadData();
 }
 
+// ─── 장비 등록 · 수정 · 삭제 (Phase 2) ───
+
+function readItemInputs() {
+  const name = getEl('itemNameInput').value.trim();
+  const category = getEl('itemCategorySelect').value;
+  const location = getEl('itemLocationInput').value.trim();
+  if (!name || !location) {
+    showMessage('장비 이름과 보관 위치를 입력하세요.', 'error');
+    return null;
+  }
+  return { name, category, location };
+}
+
+// 등록 폼을 비우고 등록 모드로
+function resetItemForm() {
+  editingItemId = null;
+  const name = getEl('itemNameInput');
+  const category = getEl('itemCategorySelect');
+  const location = getEl('itemLocationInput');
+  if (name) name.value = '';
+  if (category) category.selectedIndex = 0;
+  if (location) location.value = '';
+}
+
+// 폼 제출 : 수정 중이면 수정 저장, 아니면 등록
+function handleItemSubmit(event) {
+  event.preventDefault();
+  if (editingItemId) saveEditItem();
+  else addItem();
+}
+
+// [등록] (F-08)
+async function addItem() {
+  const item = readItemInputs();
+  if (!item) return;
+  const btn = getEl('addItemBtn');
+  setBusy(btn, true);
+  try {
+    await insertItem(item);
+    resetItemForm();
+    showMessage(`「${item.name}」을(를) 등록했습니다.`, 'ok');
+  } catch (e) {
+    showMessage(toKoreanError(e), 'error');
+  } finally {
+    setBusy(btn, false);
+  }
+  await reloadData();
+}
+
+// [수정] → 등록 폼에 값을 채우고 수정 모드로 (F-09)
+function startEditItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!item || !canEditItem(item, currentUser && currentUser.id)) {
+    showMessage('본인이 등록한 장비만 수정할 수 있습니다.', 'error');
+    return;
+  }
+  editingItemId = id;
+  getEl('itemNameInput').value = item.name;
+  getEl('itemCategorySelect').value = item.category;
+  getEl('itemLocationInput').value = item.location;
+  renderSidePanel();
+  renderItemTable();
+  getEl('itemNameInput').focus();
+}
+
+// [수정 저장]
+async function saveEditItem() {
+  const fields = readItemInputs();
+  if (!fields) return;
+  const btn = getEl('addItemBtn');
+  setBusy(btn, true);
+  try {
+    await updateItem(editingItemId, fields);
+    resetItemForm();
+    showMessage(`「${fields.name}」을(를) 수정했습니다.`, 'ok');
+  } catch (e) {
+    showMessage(toKoreanError(e), 'error');
+  } finally {
+    setBusy(btn, false);
+  }
+  await reloadData();
+}
+
+// [취소] : 수정을 그만두고 등록 모드로
+function cancelEditItem() {
+  resetItemForm();
+  renderSidePanel();
+  renderItemTable();
+}
+
+// [삭제] (F-10) : 대여 기록이 있으면 DB가 거부하고, 그 이유를 그대로 보여 준다 (R-08)
+async function removeItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!confirm(`「${item ? item.name : '장비'}」을(를) 삭제할까요?`)) {
+    renderItemTable();
+    return;
+  }
+  try {
+    await deleteItem(id);
+    if (editingItemId === id) resetItemForm();
+    showMessage(`「${item ? item.name : '장비'}」을(를) 삭제했습니다.`, 'ok');
+  } catch (e) {
+    showMessage(toKoreanError(e), 'error');
+  }
+  await reloadData();
+}
+
 function bindEvents() {
   getEl('loginForm').addEventListener('submit', handleLogin);
   getEl('signupBtn').addEventListener('click', handleSignup);
   getEl('logoutBtn').addEventListener('click', handleLogout);
   getEl('reloadBtn').addEventListener('click', () => reloadData());
   getEl('confirmLoanBtn').addEventListener('click', confirmLoan);
+  getEl('itemForm').addEventListener('submit', handleItemSubmit);
+  getEl('cancelEditBtn').addEventListener('click', cancelEditItem);
+  // 검색 · 필터 : 표만 다시 그린다 (F-12)
+  getEl('searchInput').addEventListener('input', renderItemTable);
+  getEl('categoryFilter').addEventListener('change', renderItemTable);
+  getEl('statusFilter').addEventListener('change', renderItemTable);
 }
 
 // ─── 시작 ───

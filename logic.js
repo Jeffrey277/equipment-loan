@@ -54,6 +54,11 @@ function canBorrow(item) {
   return item.status === '대여 가능';
 }
 
+// R-03 [수정] [삭제] 버튼을 보일지 : 내가 등록한 장비만 (기본 장비 · 로그인 전은 false)
+function canEditItem(item, userId) {
+  return !!userId && item.ownerId === userId;
+}
+
 // ─── 집계 · 정렬 ───
 
 // 요약 카드 : 로그인 전 3개, 로그인 후 5개 → [{ label, value, alert }]
@@ -71,6 +76,17 @@ function summarize(items, myLoans, today, loggedIn) {
     cards.push({ label: '내 연체', value: myOverdue, alert: myOverdue > 0 });
   }
   return cards;
+}
+
+// 검색 · 필터 : 이름 · 보관 위치 검색 + 분류 + 상태를 함께 ('전체'나 빈 값은 조건 없음)
+function filterItems(items, keyword, category, status) {
+  const kw = (keyword || '').trim().toLowerCase();
+  return items.filter(i => {
+    if (kw && !i.name.toLowerCase().includes(kw) && !i.location.toLowerCase().includes(kw)) return false;
+    if (category && category !== '전체' && i.category !== category) return false;
+    if (status && status !== '전체' && i.status !== status) return false;
+    return true;
+  });
 }
 
 // 내 대여 : 대여중 먼저(반납예정일 빠른 순), 반납완료는 최근 반납 순
