@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>공용 장비 대여 현황판</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 머리글 : 로그인 전 남색 / 로그인 후 초록 (body.logged-in) -->
+  <header id="appHeader" class="app-header">
+    <div class="header-title">
+      <h1>공용 장비 대여 현황판</h1>
+      <span class="tag">교육용 가상 데이터</span>
+    </div>
+    <div class="header-right">
+      <span id="headerStatus">로그인 전 — 보기만 가능</span>
+      <span id="userEmail"></span>
+      <button id="logoutBtn" type="button" class="header-btn" hidden>로그아웃</button>
+      <button id="reloadBtn" type="button" class="header-btn">새로 불러오기</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="msgBox" class="msg" role="status" hidden></div>
+
+    <!-- 요약 카드 : 로그인 전 3개 / 로그인 후 5개 -->
+    <section id="summaryCards" class="summary"></section>
+
+    <div class="layout">
+      <!-- 왼쪽 칸 : 로그인 전 = 로그인 폼 / 로그인 후 = 대여 패널 -->
+      <aside class="side">
+        <form id="loginForm" class="panel">
+          <h2>로그인</h2>
+          <label>이메일
+            <input id="emailInput" type="email" autocomplete="username" placeholder="test1@example.com">
+          </label>
+          <label>비밀번호
+            <input id="passwordInput" type="password" autocomplete="current-password" placeholder="6자 이상">
+          </label>
+          <button id="loginBtn" type="submit">로그인</button>
+          <button id="signupBtn" type="button" class="secondary">처음이면 회원가입</button>
+          <p class="hint">가상 이메일(test1@example.com 등)만 쓰세요.</p>
+        </form>
+
+        <section id="loanPanel" class="panel" hidden>
+          <h2>대여</h2>
+          <p class="loan-item">장비 : <strong id="loanItemName"></strong></p>
+          <label>반납예정일
+            <input id="dueDateInput" type="date">
+          </label>
+          <p class="hint">오늘부터 7일 이내로 고르세요.</p>
+          <button id="confirmLoanBtn" type="button">대여 확정</button>
+        </section>
+      </aside>
+
+      <!-- 오른쪽 칸 : 장비 목록 -->
+      <section class="panel list">
+        <h2>장비 목록</h2>
+        <div class="table-wrap">
+          <table id="itemTable" class="table"></table>
+        </div>
+      </section>
+    </div>
+
+    <!-- 아래 : 내 대여 -->
+    <section id="myLoansSection" class="panel">
+      <h2>내 대여</h2>
+      <p id="myLoansNotice" class="notice">로그인하면 볼 수 있습니다</p>
+      <div class="table-wrap">
+        <table id="myLoansTable" class="table" hidden></table>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

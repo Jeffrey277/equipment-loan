@@ -1,0 +1,121 @@
+/* style.css – 공용 장비 대여 현황판 */
+
+:root {
+  --navy: #1e3a5f;        /* 로그인 전 머리글 */
+  --green: #1f7a4d;       /* 로그인 후 머리글 */
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --line: #d8dee6;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --ok-bg: #e7f6ec;   --ok-text: #166534;
+  --err-bg: #fdecec;  --err-text: #b91c1c;
+  --info-bg: #eaf1fd; --info-text: #1e40af;
+  --available: #15803d;
+  --onloan: #b45309;
+}
+
+* { box-sizing: border-box; }
+
+/* hidden 속성이 display 지정보다 이기게 (로그인 전 · 후 숨김) */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+}
+
+/* ─── 머리글 ─── */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 14px 24px;
+  background: var(--navy);
+  color: #fff;
+}
+body.logged-in .app-header { background: var(--green); }
+
+.header-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.header-title h1 { margin: 0; font-size: 20px; }
+.tag { font-size: 12px; padding: 2px 8px; border: 1px solid rgba(255, 255, 255, .6); border-radius: 10px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+#userEmail { font-weight: bold; }
+
+.header-btn {
+  background: rgba(255, 255, 255, .15);
+  border: 1px solid rgba(255, 255, 255, .7);
+  color: #fff;
+  width: auto;
+  margin: 0;
+}
+.header-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .3); }
+
+/* ─── 본문 ─── */
+.container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+
+.msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-weight: bold; }
+.msg-ok    { background: var(--ok-bg);   color: var(--ok-text); }
+.msg-error { background: var(--err-bg);  color: var(--err-text); }
+.msg-info  { background: var(--info-bg); color: var(--info-text); }
+
+/* 요약 카드 */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+.card-label { color: var(--muted); font-size: 13px; }
+.card-value { font-size: 26px; font-weight: bold; margin-top: 4px; }
+.card.alert { border-color: var(--err-text); background: var(--err-bg); }
+.card.alert .card-value { color: var(--err-text); }
+
+/* 왼쪽 칸 + 장비 목록 */
+.layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; margin-bottom: 16px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.panel h2 { margin: 0 0 12px; font-size: 16px; }
+
+label { display: block; font-size: 14px; margin-bottom: 10px; }
+input { display: block; width: 100%; margin-top: 4px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 15px; }
+
+button {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.secondary { background: #fff; color: var(--primary); }
+button.small { display: inline-block; width: auto; margin: 0 4px 0 0; padding: 4px 10px; font-size: 13px; }
+
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+.loan-item { margin: 0 0 10px; }
+.notice { color: var(--muted); margin: 0; }
+
+/* 표 */
+.table-wrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.table th { background: #f8fafc; color: var(--muted); font-weight: normal; }
+.table tr.selected td { background: #fff7e0; }
+.table td.empty { color: var(--muted); text-align: center; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+.badge-available { background: var(--ok-bg); color: var(--available); }
+.badge-onloan { background: #fdf2e2; color: var(--onloan); }
+
+/* 좁은 화면 : 한 줄로 쌓기 */
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr; }
+  .app-header { padding: 12px 16px; }
+}

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>logic.js 테스트 – 공용 장비 대여 현황판</title>
+  <style>
+    body { font-family: 'Malgun Gothic', sans-serif; margin: 24px; color: #1f2937; }
+    h1 { font-size: 20px; }
+    #result { font-weight: bold; margin: 12px 0; }
+    table { border-collapse: collapse; width: 100%; max-width: 960px; font-size: 14px; }
+    th, td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+    th { background: #f3f4f6; }
+    .pass { color: #15803d; font-weight: bold; }
+    .fail { color: #b91c1c; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>logic.js 자동 테스트 (PRD 10장 '(자동)' 항목)</h1>
+  <div id="result"></div>
+  <table>
+    <thead><tr><th>번호</th><th>확인 내용</th><th>기대</th><th>실제</th><th>결과</th></tr></thead>
+    <tbody id="testBody"></tbody>
+  </table>
+
+  <script src="logic.js"></script>
+  <script>
+    const tests = [];
+    function check(no, desc, actual, expected) {
+      tests.push({ no, desc, actual: JSON.stringify(actual), expected: JSON.stringify(expected) });
+    }
+
+    // 기본 : 날짜 함수
+    check('기본', 'todayStr()는 YYYY-MM-DD 모양', /^\d{4}-\d{2}-\d{2}$/.test(todayStr()), true);
+    check('기본', 'addDays : 달이 넘어가도 맞다 (2026-10-28 + 7)', addDays('2026-10-28', 7), '2026-11-04');
+
+    // T-01 반납예정일 7일 이내 (R-05)
+    check('T-01', '대여일 2026-10-23 → 마지막 반납예정일', maxDueDate('2026-10-23'), '2026-10-30');
+    check('T-01', '2026-10-23 → 2026-10-30(7일 뒤) 허용', isValidDueDate('2026-10-23', '2026-10-30'), true);
+    check('T-01', '2026-10-23 → 2026-10-31(8일 뒤) 거부', isValidDueDate('2026-10-23', '2026-10-31'), false);
+
+    // T-02 반납예정일이 대여일보다 앞서면 거부 (R-05)
+    check('T-02', '2026-10-23 → 2026-10-22(하루 전) 거부', isValidDueDate('2026-10-23', '2026-10-22'), false);
+    check('T-02', '2026-10-23 → 2026-10-23(당일) 허용', isValidDueDate('2026-10-23', '2026-10-23'), true);
+    check('T-02', '반납예정일을 안 고르면 거부', isValidDueDate('2026-10-23', ''), false);
+
+    // T-03 연체 (R-09), 오늘 2026-10-23
+    check('T-03', '반납예정일 10-22 대여중 = 연체', isOverdue({ status: '대여중', dueDate: '2026-10-22' }, '2026-10-23'), true);
+    check('T-03', '반납예정일 10-23(오늘) 대여중 = 연체 아님', isOverdue({ status: '대여중', dueDate: '2026-10-23' }, '2026-10-23'), false);
+    check('T-03', '반납예정일 10-22 반납완료 = 연체 아님', isOverdue({ status: '반납완료', dueDate: '2026-10-22' }, '2026-10-23'), false);
+
+    // T-04 요약 카드 숫자 : 장비 10개 중 대여중 3개, 내 대여중 2(그중 연체 1) + 반납완료 1
+    const items = [];
+    for (let i = 1; i <= 10; i++) items.push({ id: i, status: i <= 3 ? '대여중' : '대여 가능' });
+    const myLoans = [
+      { id: 1, status: '대여중', dueDate: '2026-10-20' },
+      { id: 2, status: '대여중', dueDate: '2026-10-25' },
+      { id: 3, status: '반납완료', dueDate: '2026-10-10' },
+    ];
+    check('T-04', '로그인 전 카드 [전체, 대여 가능, 대여중]',
+      summarize(items, [], '2026-10-23', false).map(c => c.value), [10, 7, 3]);
+    check('T-04', '로그인 후 카드 [+ 내 대여중, 내 연체]',
+      summarize(items, myLoans, '2026-10-23', true).map(c => c.value), [10, 7, 3, 2, 1]);
+    check('T-04', '내 연체가 1 이상이면 빨간색 표시',
+      summarize(items, myLoans, '2026-10-23', true)[4].alert, true);
+
+    // T-05 내 대여 정렬 : 대여중 먼저(반납예정일 빠른 순)
+    const unsorted = [
+      { id: 'a', status: '반납완료', dueDate: '2026-10-01', returnedAt: '2026-10-02T09:00:00+09:00' },
+      { id: 'b', status: '대여중', dueDate: '2026-10-28' },
+      { id: 'c', status: '반납완료', dueDate: '2026-10-05', returnedAt: '2026-10-06T09:00:00+09:00' },
+      { id: 'd', status: '대여중', dueDate: '2026-10-24' },
+    ];
+    check('T-05', '대여중(반납예정일 빠른 순) → 반납완료(최근 순)',
+      sortMyLoans(unsorted).map(l => l.id), ['d', 'b', 'c', 'a']);
+    check('T-05', '원래 배열은 바꾸지 않는다', unsorted.map(l => l.id), ['a', 'b', 'c', 'd']);
+
+    // 표 그리기
+    const body = document.getElementById('testBody');
+    let passCount = 0;
+    tests.forEach(t => {
+      const ok = t.actual === t.expected;
+      if (ok) passCount++;
+      const row = body.insertRow();
+      [t.no, t.desc, t.expected, t.actual].forEach(text => { row.insertCell().textContent = text; });
+      const cell = row.insertCell();
+      cell.textContent = ok ? 'PASS' : 'FAIL';
+      cell.className = ok ? 'pass' : 'fail';
+    });
+    const result = document.getElementById('result');
+    result.textContent = `${tests.length}개 중 ${passCount}개 PASS`;
+    result.className = passCount === tests.length ? 'pass' : 'fail';
+  </script>
+</body>
+</html>
