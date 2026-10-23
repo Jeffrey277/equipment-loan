@@ -78,3 +78,5 @@
 
 ## 자주 발생한 오류와 해결 (Debug Loop에서 배운 것 – 계속 추가)
 - getElementById 결과는 사용 전에 있는지 확인하고, 없으면 콘솔에 '요소 없음: id'를 표시한다.
+- "Supabase에 연결하지 못했습니다"(Failed to fetch)가 뜨면 config.js의 SUPABASE_URL을 확인한다. `https://`가 두 번 들어가면(`https://https://…`) 연결되지 않는다.
+- Console의 `favicon.ico 404`는 아이콘 파일이 없어 브라우저가 자동 요청에 실패한 것이다 → 새 HTML 파일을 만들 때는 `<head>`에 `<link rel="icon" href="data:,">`를 반드시 넣는다. (`auth/v1/token?grant_type=password 400`은 로그인 실패 기록이라 코드 오류가 아니다)
